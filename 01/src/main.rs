@@ -4,19 +4,27 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-fn eval_parens(parens: &str) -> i32 {
-    let mut count = 0;
+fn eval_parens(parens: &str) -> (i32, usize) {
+    let mut floor = 0;
+    let mut position = 0;
+    let mut found = false;
 
     // Iterate through characters in parens string. Increment or decrement
     // accordingly. Do nothing if another character is found (i.e. '\n').
-    for c in parens.chars() {
+    for (i, c) in parens.chars().enumerate() {
         match c {
-            '(' => count += 1,
-            ')' => count -= 1,
+            '(' => floor += 1,
+            ')' => floor -= 1,
             _ => { },
         }
+
+        // Check to see if we've entered the basement yet.
+        if floor == -1 && !found {
+            position = i + 1;
+            found = true;
+        }
     }
-    count
+    (floor , position)
 }
 
 fn main() {
@@ -42,7 +50,11 @@ fn main() {
     match file.read_to_string(&mut s) {
         Err(why) => panic!("couldn't read {}: {}", display,
                                                    Error::description(&why)),
-        Ok(_) => print!("Santa is on floor {}.\n", eval_parens(&s)),
+        Ok(_) => {
+            let (floor, position) = eval_parens(&s);
+            print!("Santa is on floor {}. \
+                   He enters the basement at position {}.\n", floor, position)
+        },
     }
 
     // `file` goes out of scope, and the file gets closed
@@ -53,27 +65,37 @@ mod test {
     use super::eval_parens;
 
     #[test]
-    fn test_zero() {
-        assert_eq!(eval_parens("(())"), 0);
-        assert_eq!(eval_parens("()()"), 0);
+    fn test_floor_zero() {
+        assert_eq!(eval_parens("(())").0, 0);
+        assert_eq!(eval_parens("()()").0, 0);
     }
 
     #[test]
-    fn test_three() {
-        assert_eq!(eval_parens("((("), 3);
-        assert_eq!(eval_parens("(()(()("), 3);
-        assert_eq!(eval_parens("))((((("), 3);
+    fn test_floor_three() {
+        assert_eq!(eval_parens("(((").0, 3);
+        assert_eq!(eval_parens("(()(()(").0, 3);
+        assert_eq!(eval_parens("))(((((").0, 3);
     }
 
     #[test]
-    fn test_negative_one() {
-        assert_eq!(eval_parens("())"), -1);
-        assert_eq!(eval_parens("))("), -1);
+    fn test_floor_negative_one() {
+        assert_eq!(eval_parens("())").0, -1);
+        assert_eq!(eval_parens("))(").0, -1);
     }
 
     #[test]
-    fn test_negative_three() {
-        assert_eq!(eval_parens(")))"), -3);
-        assert_eq!(eval_parens(")())())"), -3);
+    fn test_floor_negative_three() {
+        assert_eq!(eval_parens(")))").0, -3);
+        assert_eq!(eval_parens(")())())").0, -3);
+    }
+
+    #[test]
+    fn test_position_one() {
+        assert_eq!(eval_parens(")").1, 1);
+    }
+
+    #[test]
+    fn test_position_five() {
+        assert_eq!(eval_parens("()())").1, 5);
     }
 }
