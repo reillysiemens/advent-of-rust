@@ -6,23 +6,24 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 
-fn split_as_u32(s: &str, c: char) -> (u32, u32, u32) {
-    let n: Vec<u32> = s.split(c)
-                       .map(|x| {
-                           x.parse::<u32>()
-                            .ok()
-                            .unwrap()
-                       })
-                       .collect();
-    (n[0], n[1], n[2])
+fn split_as_u32(s: &str, c: char) -> Vec<u32> {
+    s.split(c)
+     .map(|x| {
+         x.parse::<u32>()
+          .ok()
+          .unwrap()
+     })
+     .collect()
 }
 
-fn total_area(dimensions: &str) -> u32 {
-    let (l, w, h) = split_as_u32(dimensions, 'x');
-    let sides = vec![(l * w), (w * h), (h * l)];
+fn materials(dimensions: &str) -> (u32, u32) {
+    let mut d = split_as_u32(dimensions, 'x');
+    d.sort();
+    let smallest = &d[..2];
+    let ribbon = d.iter().product::<u32>() + smallest.iter().map(|x| 2 * x).sum::<u32>();
+    let sides = vec![(d[0] * d[1]), (d[1] * d[2]), (d[2] * d[0])];
     let surface_area = sides.iter().map(|x| 2 * x).sum::<u32>();
-    let smallest_side = sides.iter().min().unwrap();
-    surface_area + smallest_side
+    (surface_area + sides[0], ribbon)
 }
 
 fn main() {
@@ -40,26 +41,35 @@ fn main() {
     match file.read_to_string(&mut s) {
         Err(why) => panic!("couldn't read {}: {}", display, Error::description(&why)),
         Ok(_) => {
-            let answer: u32 = s.lines()
-                               .map(|line| total_area(line))
-                               .sum();
-            println!("The elves need {} total square feet of wrapping paper.",
-                     answer);
+            let (mut surface_area, mut ribbon) = (0, 0);
+            for line in s.lines() {
+                let (sa, r) = materials(line);
+                surface_area += sa;
+                ribbon += r;
+            }
+            println!("Santa's elves need {} total square feet of wrapping paper.\nThey also need \
+                      {} total feet of ribbon.",
+                     surface_area,
+                     ribbon);
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::total_area;
+    use super::materials;
 
     #[test]
     fn test_two_by_three_by_four() {
-        assert_eq!(58, total_area("2x3x4"));
+        let (surface_area, ribbon) = materials("2x3x4");
+        assert_eq!(58, surface_area);
+        assert_eq!(34, ribbon);
     }
 
     #[test]
     fn test_one_by_one_by_ten() {
-        assert_eq!(43, total_area("1x1x10"));
+        let (surface_area, ribbon) = materials("1x1x10");
+        assert_eq!(43, surface_area);
+        assert_eq!(14, ribbon);
     }
 }
