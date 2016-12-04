@@ -24,6 +24,11 @@ fn visit_houses(directions: &str) -> usize {
     houses.len()
 }
 
+fn robo_visit_houses(directions: &str) -> usize {
+    // Maybe have a flag for a robot santa in the function above instead...
+    3
+}
+
 fn main() {
     let input = env::args().nth(1).unwrap();
 
@@ -48,12 +53,19 @@ fn main() {
 
 #[cfg(test)]
 mod test {
-    use super::visit_houses;
+    use super::{visit_houses, robo_visit_houses};
 
     #[test]
-    fn test_directions() {
+    fn test_visits() {
         assert_eq!(2, visit_houses(">"));
         assert_eq!(4, visit_houses("^>v<"));
         assert_eq!(2, visit_houses("^v^v^v^v^v"));
+    }
+
+    #[test]
+    fn test_robo_visits() {
+        assert_eq!(3, robo_visit_houses("^v"));
+        assert_eq!(3, robo_visit_houses("^>v<"));
+        assert_eq!(11, robo_visit_houses("^v^v^v^v^v"));
     }
 }
