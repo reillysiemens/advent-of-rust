@@ -11,6 +11,19 @@ fn captcha(input: &str) -> u32 {
         .sum()
 }
 
+fn recaptcha(input: &str) -> u32 {
+    input
+        .chars()
+        .zip(input.chars().cycle().skip(input.len() / 2).take(
+            input.len(),
+        ))
+        .filter_map(|t| match (t.0, t.1) {
+            (x, y) if x == y => Some(x.to_digit(10)?),
+            _ => None,
+        })
+        .sum()
+}
+
 /// Many thanks to [Reddit](https://redd.it/32rjdd/).
 fn read_input() -> Result<String, io::Error> {
     let input = env::args().nth(1).unwrap_or_else(|| "-".to_string());
@@ -27,7 +40,7 @@ fn read_input() -> Result<String, io::Error> {
 
 fn main() {
     match read_input() {
-        Ok(s) => println!("{}", captcha(s.trim())),
+        Ok(s) => println!("{}", recaptcha(s.trim())),
         Err(e) => println!("{:?}", e),
     }
 }
@@ -35,15 +48,24 @@ fn main() {
 #[cfg(test)]
 mod test {
 
-    use captcha;
+    use {captcha, recaptcha};
 
     #[test]
-    fn test_inputs() {
+    fn test_captcha() {
         let givens = vec!["1122", "1111", "1234", "91212129"];
         let expected = vec![3, 4, 0, 9];
         let actuals: Vec<u32> = givens.iter().map(|g| captcha(&g)).collect();
 
         assert_eq!(expected, actuals);
 
+    }
+
+    #[test]
+    fn test_recaptcha() {
+        let givens = vec!["1212", "1221", "123425", "123123", "12131415"];
+        let expected = vec![6, 0, 4, 12, 4];
+        let actuals: Vec<u32> = givens.iter().map(|g| recaptcha(&g)).collect();
+
+        assert_eq!(expected, actuals);
     }
 }
