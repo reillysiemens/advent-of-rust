@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
@@ -7,6 +8,7 @@ use std::num;
 #[derive(Debug)]
 enum Error {
     ArgumentError,
+    EmptyInput,
     IoError(io::Error),
     ParseError(num::ParseIntError),
 }
@@ -35,6 +37,20 @@ fn frequency<'a>(changes: impl Iterator<Item = &'a isize>) -> isize {
     changes.sum()
 }
 
+fn first_repeat<'a>(changes: impl Iterator<Item = &'a isize> + Clone) -> Option<isize> {
+    let mut frequency = 0;
+    let mut frequencies = HashSet::new();
+    frequencies.insert(frequency);
+    for change in changes.cycle() {
+        frequency += change;
+        if frequencies.contains(&frequency) {
+            return Some(frequency);
+        }
+        frequencies.insert(frequency);
+    }
+    None
+}
+
 fn main() -> Result<(), Error> {
     let input = env::args().nth(1).ok_or(Error::ArgumentError)?;
     let file = File::open(input)?;
@@ -42,14 +58,17 @@ fn main() -> Result<(), Error> {
     let lines = reader.lines().collect::<io::Result<Vec<String>>>()?;
     let changes = parse(lines.iter())?;
 
+    // The program will exit early with an error if part 2 can't be computed.
+    let repeat = first_repeat(changes.iter()).ok_or(Error::EmptyInput)?;
     println!("Part 1: {}", frequency(changes.iter()));
+    println!("Part 2: {}", repeat);
 
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
-    use super::{frequency, parse};
+    use super::{first_repeat, frequency, parse};
 
     #[test]
     fn parse_errors_with_invalid_digits() {
@@ -102,5 +121,24 @@ mod test {
     fn frequency_handles_positive_and_negative_changes() {
         let changes = vec![1, 1, -2];
         assert_eq!(0, frequency(changes.iter()));
+    }
+
+    #[test]
+    fn first_repeat_is_none_with_no_changes() {
+        let changes = vec![];
+        assert_eq!(None, first_repeat(changes.iter()));
+    }
+
+    #[test]
+    fn first_repeat_handles_finite_input() {
+        let inputs = vec![
+            (vec![1, -1], Some(0)),
+            (vec![3, 3, 4, -2, -4], Some(10)),
+            (vec![-6, 3, 8, 5, -6], Some(5)),
+            (vec![7, 7, -2, -7, -4], Some(14)),
+        ];
+        for (given, expected) in inputs {
+            assert_eq!(expected, first_repeat(given.iter()));
+        }
     }
 }
