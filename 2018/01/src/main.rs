@@ -26,7 +26,7 @@ impl From<num::ParseIntError> for Error {
 }
 
 fn parse<'a>(
-    changes: impl Iterator<Item = &'a (impl AsRef<str> + 'a)>,
+    changes: impl Iterator<Item = impl AsRef<str>>,
 ) -> Result<Vec<isize>, num::ParseIntError> {
     changes
         .map(|c| c.as_ref().parse())
