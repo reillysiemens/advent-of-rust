@@ -16,15 +16,15 @@ impl From<io::Error> for Error {
     }
 }
 
-fn char_counts(string: &String) -> HashMap<char, usize> {
+fn char_counts(string: impl AsRef<str>) -> HashMap<char, usize> {
     let mut counts = HashMap::new();
-    for c in string.chars() {
+    for c in string.as_ref().chars() {
         *counts.entry(c).or_insert(0) += 1;
     }
     counts
 }
 
-fn checksum<'a>(ids: impl IntoIterator<Item = &'a String>) -> usize {
+fn checksum<'a>(ids: impl IntoIterator<Item = impl AsRef<str>>) -> usize {
     let (twos, threes) = ids
         .into_iter()
         .map(char_counts)
@@ -98,20 +98,20 @@ mod test {
 
     #[test]
     fn checksum_is_zero_with_empty_string() {
-        let strings = ["".to_string()];
+        let strings = [""];
         assert_eq!(0, checksum(&strings));
     }
 
     #[test]
     fn checksum_counts_twos_and_threes_correctly() {
         let strings = [
-            "abcdef".to_string(), // no repeats of 2 or 3
-            "bababc".to_string(), // 2 a and 3 b, so it counts for both.
-            "abbcde".to_string(), // 2 b, but no letter appears exactly 3 times.
-            "abcccd".to_string(), // 3 c, but no letter appears exactly 2 times.
-            "aabcdd".to_string(), // 2 a and 2 d, but it only counts once.
-            "abcdee".to_string(), // 2 e.
-            "ababab".to_string(), // 3 a and 3 b, but it only counts once.
+            "abcdef", // no repeats of 2 or 3
+            "bababc", // 2 a and 3 b, so it counts for both.
+            "abbcde", // 2 b, but no letter appears exactly 3 times.
+            "abcccd", // 3 c, but no letter appears exactly 2 times.
+            "aabcdd", // 2 a and 2 d, but it only counts once.
+            "abcdee", // 2 e.
+            "ababab", // 3 a and 3 b, but it only counts once.
         ];
         assert_eq!(12, checksum(&strings)); // 4 (twos) * 3 (threes) = 12
     }
