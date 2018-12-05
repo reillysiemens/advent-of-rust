@@ -37,8 +37,8 @@ fn checksum<'a>(ids: impl IntoIterator<Item = &'a String>) -> usize {
                 (false, false) => None,
             }
         })
-        .fold((0, 0), |twos_threes, contains| {
-            (twos_threes.0 + contains.0, twos_threes.1 + contains.1)
+        .fold((0, 0), |(twos, threes), (x, y)| {
+            (twos + x, threes + y)
         });
     twos * threes
 }
