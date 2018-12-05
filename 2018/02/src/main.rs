@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use std::collections::HashSet;
 
 #[derive(Debug)]
 enum Error {
@@ -28,8 +29,8 @@ fn checksum<'a>(ids: impl IntoIterator<Item = &'a String>) -> usize {
         .into_iter()
         .map(char_counts)
         .filter_map(|c| {
-            let values = c.values().collect::<Vec<&usize>>();
-            match (values.contains(&(&2)), values.contains(&(&3))) {
+            let values: HashSet<usize> = c.values().cloned().collect();
+            match (values.contains(&2), values.contains(&3)) {
                 (true, true) => Some((1, 1)),
                 (true, false) => Some((1, 0)),
                 (false, true) => Some((0, 1)),
