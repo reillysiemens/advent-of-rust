@@ -23,6 +23,28 @@ impl TryFrom<isize> for OpCode {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum Token {
+    OpCode(OpCode),
+    Load(isize),
+    Store(isize),
+}
+
+fn tokenize(input: Vec<isize>) -> Result<Vec<Token>, InvalidOpCode> {
+    input
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            Ok(match i % 4 {
+                0 => Token::OpCode(OpCode::try_from(*e)?),
+                1 | 2 => Token::Load(*e),
+                3 => Token::Store(*e),
+                _ => unreachable!("This should be impossible."),
+            })
+        })
+        .collect()
+}
+
 fn main() {}
 
 #[cfg(test)]
@@ -53,6 +75,24 @@ mod test {
             for (given, expected) in inputs {
                 assert_eq!(Err(expected), OpCode::try_from(given));
             }
+        }
+    }
+
+    mod tokens {
+        use super::*;
+
+        #[test]
+        fn can_be_generated_from_programs() {
+            let given = vec![1, 0, 0, 0, 99];
+            let expected = vec![
+                Token::OpCode(OpCode::Add),
+                Token::Load(0),
+                Token::Load(0),
+                Token::Store(0),
+                Token::OpCode(OpCode::Halt),
+            ];
+
+            assert_eq!(Ok(expected), tokenize(given));
         }
     }
 }
