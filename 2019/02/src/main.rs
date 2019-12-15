@@ -1,6 +1,25 @@
 type Intcode = usize;
 
-type Program = Vec<Intcode>;
+struct Program(Vec<Intcode>);
+
+struct ProgramIter;
+
+impl Iterator for ProgramIter {
+    type Item = Instruction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+    }
+}
+
+impl IntoIterator for Program {
+    type Item = Instruction;
+    type IntoIter = ProgramIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ProgramIter
+    }
+}
 
 #[derive(Debug, PartialEq)]
 enum Error {
@@ -30,7 +49,7 @@ impl Interpreter {
     }
 
     fn intcode_at_offset(&self, offset: usize) -> Intcode {
-        self.program[self.counter + offset]
+        self.program.0[self.counter + offset]
     }
 
     fn next_instructions(&self) -> Result<Vec<Instruction>, Error> {
@@ -66,7 +85,7 @@ mod test {
         fn can_interpret_halt() {
             let expected = vec![Instruction::Halt];
 
-            let program = vec![99];
+            let program = Program(vec![99]);
             let interpreter = Interpreter::new(program);
             let instructions = interpreter.next_instructions();
 
@@ -77,7 +96,7 @@ mod test {
         fn halting_is_idempotent() {
             let expected = vec![Instruction::Halt];
 
-            let program = vec![99];
+            let program = Program(vec![99]);
             let interpreter = Interpreter::new(program);
             interpreter.next_instructions().expect("Unexpected error");
             let instructions = interpreter.next_instructions();
@@ -94,7 +113,7 @@ mod test {
                 Instruction::Store(0),
             ];
 
-            let program = vec![1, 0, 0, 0];
+            let program = Program(vec![1, 0, 0, 0]);
             let interpreter = Interpreter::new(program);
             let instructions = interpreter.next_instructions();
 
@@ -110,7 +129,7 @@ mod test {
                 Instruction::Store(0),
             ];
 
-            let program = vec![2, 0, 0, 0];
+            let program = Program(vec![2, 0, 0, 0]);
             let interpreter = Interpreter::new(program);
             let instructions = interpreter.next_instructions();
 
