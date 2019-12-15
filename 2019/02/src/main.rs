@@ -1,6 +1,16 @@
+use std::num::ParseIntError;
+
 type Intcode = usize;
 
 struct Program(Vec<Intcode>);
+
+impl Program {
+    fn run(input: impl AsRef<str>) -> Result<Self, ParseIntError> {
+        let intcodes: Result<Vec<Intcode>, ParseIntError> =
+            input.as_ref().split(",").map(str::parse::<usize>).collect();
+        Ok(Program(intcodes?))
+    }
+}
 
 struct ProgramIter;
 
@@ -134,6 +144,16 @@ mod test {
             let instructions = interpreter.next_instructions();
 
             assert_eq!(Ok(expected), instructions);
+        }
+    }
+
+    mod program {
+        use super::*;
+
+        #[test]
+        fn can_halt() {
+            let tape = Program::run("99").expect("Invalid test program");
+            assert_eq!(tape.0, vec![99])
         }
     }
 }
