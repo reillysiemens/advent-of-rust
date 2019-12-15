@@ -1,48 +1,56 @@
-use std::convert::TryFrom;
+type Intcode = usize;
+
+type Program = Vec<Intcode>;
 
 #[derive(Debug, PartialEq)]
-struct InvalidOpCode;
+enum Error {
+    InvalidOpCode,
+}
 
 #[derive(Debug, PartialEq)]
-enum OpCode {
+enum Instruction {
     Add,
-    Multiply,
+    Mul,
+    Load(usize),
+    Store(usize),
     Halt,
 }
 
-impl TryFrom<isize> for OpCode {
-    type Error = InvalidOpCode;
+struct Interpreter {
+    counter: usize,
+    program: Program,
+}
 
-    fn try_from(value: isize) -> Result<OpCode, Self::Error> {
-        match value {
-            1 => Ok(OpCode::Add),
-            2 => Ok(OpCode::Multiply),
-            99 => Ok(OpCode::Halt),
-            _ => Err(InvalidOpCode),
+impl Interpreter {
+    fn new(program: Program) -> Self {
+        Interpreter {
+            counter: 0,
+            program,
         }
     }
-}
 
-#[derive(Debug, PartialEq)]
-enum Token {
-    OpCode(OpCode),
-    Load(isize),
-    Store(isize),
-}
+    fn intcode_at_offset(&self, offset: usize) -> Intcode {
+        self.program[self.counter + offset]
+    }
 
-fn tokenize(input: Vec<isize>) -> Result<Vec<Token>, InvalidOpCode> {
-    input
-        .iter()
-        .enumerate()
-        .map(|(i, e)| {
-            Ok(match i % 4 {
-                0 => Token::OpCode(OpCode::try_from(*e)?),
-                1 | 2 => Token::Load(*e),
-                3 => Token::Store(*e),
-                _ => unreachable!("This should be impossible."),
-            })
-        })
-        .collect()
+    fn next_instructions(&self) -> Result<Vec<Instruction>, Error> {
+        match self.intcode_at_offset(0) {
+            1 => Ok(vec![
+                Instruction::Load(self.intcode_at_offset(1)),
+                Instruction::Load(self.intcode_at_offset(2)),
+                Instruction::Add,
+                Instruction::Store(self.intcode_at_offset(3)),
+            ]),
+            2 => Ok(vec![
+                Instruction::Load(self.intcode_at_offset(1)),
+                Instruction::Load(self.intcode_at_offset(2)),
+                Instruction::Mul,
+                Instruction::Store(self.intcode_at_offset(3)),
+            ]),
+            99 => Ok(vec![Instruction::Halt]),
+            _ => Err(Error::InvalidOpCode),
+        }
+    }
 }
 
 fn main() {}
@@ -51,48 +59,62 @@ fn main() {}
 mod test {
     use super::*;
 
-    mod opcodes {
+    mod interpreter {
         use super::*;
 
         #[test]
-        fn can_be_created_from_valid_integers() {
-            let inputs = vec![(1, OpCode::Add), (2, OpCode::Multiply), (99, OpCode::Halt)];
+        fn can_interpret_halt() {
+            let expected = vec![Instruction::Halt];
 
-            for (given, expected) in inputs {
-                assert_eq!(Ok(expected), OpCode::try_from(given));
-            }
+            let program = vec![99];
+            let interpreter = Interpreter::new(program);
+            let instructions = interpreter.next_instructions();
+
+            assert_eq!(Ok(expected), instructions);
         }
 
         #[test]
-        fn cannot_be_created_from_invalid_integers() {
-            let inputs = vec![
-                (-1, InvalidOpCode),
-                (0, InvalidOpCode),
-                (3, InvalidOpCode),
-                (100, InvalidOpCode),
-            ];
+        fn halting_is_idempotent() {
+            let expected = vec![Instruction::Halt];
 
-            for (given, expected) in inputs {
-                assert_eq!(Err(expected), OpCode::try_from(given));
-            }
+            let program = vec![99];
+            let interpreter = Interpreter::new(program);
+            interpreter.next_instructions().expect("Unexpected error");
+            let instructions = interpreter.next_instructions();
+
+            assert_eq!(Ok(expected), instructions);
         }
-    }
-
-    mod tokens {
-        use super::*;
 
         #[test]
-        fn can_be_generated_from_programs() {
-            let given = vec![1, 0, 0, 0, 99];
+        fn can_interpret_add() {
             let expected = vec![
-                Token::OpCode(OpCode::Add),
-                Token::Load(0),
-                Token::Load(0),
-                Token::Store(0),
-                Token::OpCode(OpCode::Halt),
+                Instruction::Load(0),
+                Instruction::Load(0),
+                Instruction::Add,
+                Instruction::Store(0),
             ];
 
-            assert_eq!(Ok(expected), tokenize(given));
+            let program = vec![1, 0, 0, 0];
+            let interpreter = Interpreter::new(program);
+            let instructions = interpreter.next_instructions();
+
+            assert_eq!(Ok(expected), instructions);
+        }
+
+        #[test]
+        fn can_interpret_mul() {
+            let expected = vec![
+                Instruction::Load(0),
+                Instruction::Load(0),
+                Instruction::Mul,
+                Instruction::Store(0),
+            ];
+
+            let program = vec![2, 0, 0, 0];
+            let interpreter = Interpreter::new(program);
+            let instructions = interpreter.next_instructions();
+
+            assert_eq!(Ok(expected), instructions);
         }
     }
 }
