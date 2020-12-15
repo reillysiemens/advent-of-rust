@@ -1,0 +1,13 @@
+[package]
+name = "day-four"
+version = "0.1.0"
+authors = ["Reilly Tucker Siemens <reilly@tuckersiemens.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.35"
+paw = "1.0.0"
+structopt = { version = "0.3.21", features = ["paw"] }
+thiserror = "1.0.22"
