@@ -99,6 +99,30 @@ impl Passport {
             })
     }
 
+    fn expiration_year(fields: &HashMap<&str, &str>) -> Result<u32, PassportError> {
+        fields
+            .get("eyr")
+            .ok_or(PassportError::MissingField)?
+            .parse::<u32>()
+            .map_err(|_| PassportError::InvalidExpirationYear)
+            .and_then(|eyr| match eyr {
+                2020..=2030 => Ok(eyr),
+                _ => Err(PassportError::InvalidExpirationYear),
+            })
+    }
+
+    fn birth_year(fields: &HashMap<&str, &str>) -> Result<u32, PassportError> {
+        fields
+            .get("byr")
+            .ok_or(PassportError::MissingField)?
+            .parse::<u32>()
+            .map_err(|_| PassportError::InvalidBirthYear)
+            .and_then(|byr| match byr {
+                1920..=2002 => Ok(byr),
+                _ => Err(PassportError::InvalidBirthYear),
+            })
+    }
+
     fn new(passport: &str) -> Result<Self, PassportError> {
         let fields = Self::fields(passport)?;
         println!("{:#?}", fields);
@@ -106,9 +130,9 @@ impl Passport {
         let id = Self::id(&fields)?;
         let country_id = Self::country_id(&fields);
         let issue_year = Self::issue_year(&fields)?;
+        let expiration_year = Self::expiration_year(&fields)?;
+        let birth_year = Self::birth_year(&fields)?;
 
-        let _expiration_year = fields.get("eyr").ok_or(PassportError::MissingField)?;
-        let _birth_year = fields.get("byr").ok_or(PassportError::MissingField)?;
         let _height = fields.get("hgt").ok_or(PassportError::MissingField)?;
         let _hair_color = fields.get("hcl").ok_or(PassportError::MissingField)?;
         let _eye_color = fields.get("ecl").ok_or(PassportError::MissingField)?;
@@ -117,8 +141,8 @@ impl Passport {
             id: id,
             country_id: country_id,
             issue_year: issue_year,
-            expiration_year: 2025,
-            birth_year: 1970,
+            expiration_year: expiration_year,
+            birth_year: birth_year,
             height: Height::Centimeters(170),
             hair_color: "#ffffff".to_string(),
             eye_color: EyeColor::Hazel,
