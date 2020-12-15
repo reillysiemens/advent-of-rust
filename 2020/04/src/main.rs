@@ -44,7 +44,7 @@ enum PassportError {
 #[derive(PartialEq, Debug)]
 struct Passport {
     /// Passport ID: A nine-digit number, including leading zeroes.
-    id: u32,
+    id: String,
     /// Country ID: Ignored, missing or not.
     country_id: Option<String>,
     /// Four-digit year; at least 2010 and at most 2020.
@@ -66,7 +66,7 @@ impl Passport {
         passport
             .split_whitespace()
             .map(|field| {
-                let mut field = field.split(":");
+                let mut field = field.split(':');
                 match (field.next(), field.next()) {
                     (Some(key), Some(value)) => Ok((key, value)),
                     _ => Err(PassportError::InvalidField),
@@ -75,22 +75,16 @@ impl Passport {
             .collect()
     }
 
-    fn id(fields: &HashMap<&str, &str>) -> Result<u32, PassportError> {
-        let pid = fields.get("pid").ok_or(PassportError::MissingField)?;
-        match pid.len() {
-            9 => Ok(pid.parse::<u32>().map_err(|_| PassportError::InvalidID)?),
+    fn parse_id(id: &str) -> Result<String, PassportError> {
+        // Parse to validate as a number, but ignore the result.
+        match (id.len(), id.parse::<u32>()) {
+            (9, Ok(_)) => Ok(id.to_string()),
             _ => Err(PassportError::InvalidID),
         }
     }
 
-    fn country_id(fields: &HashMap<&str, &str>) -> Option<String> {
-        fields.get("cid").map(|cid| (*cid).to_string())
-    }
-
-    fn issue_year(fields: &HashMap<&str, &str>) -> Result<u32, PassportError> {
-        fields
-            .get("iyr")
-            .ok_or(PassportError::MissingField)?
+    fn parse_issue_year(issue_year: &str) -> Result<u32, PassportError> {
+        issue_year
             .parse::<u32>()
             .map_err(|_| PassportError::InvalidIssueYear)
             .and_then(|iyr| match iyr {
@@ -99,10 +93,8 @@ impl Passport {
             })
     }
 
-    fn expiration_year(fields: &HashMap<&str, &str>) -> Result<u32, PassportError> {
-        fields
-            .get("eyr")
-            .ok_or(PassportError::MissingField)?
+    fn parse_expiration_year(expiration_year: &str) -> Result<u32, PassportError> {
+        expiration_year
             .parse::<u32>()
             .map_err(|_| PassportError::InvalidExpirationYear)
             .and_then(|eyr| match eyr {
@@ -111,10 +103,8 @@ impl Passport {
             })
     }
 
-    fn birth_year(fields: &HashMap<&str, &str>) -> Result<u32, PassportError> {
-        fields
-            .get("byr")
-            .ok_or(PassportError::MissingField)?
+    fn parse_birth_year(birth_year: &str) -> Result<u32, PassportError> {
+        birth_year
             .parse::<u32>()
             .map_err(|_| PassportError::InvalidBirthYear)
             .and_then(|byr| match byr {
@@ -127,22 +117,22 @@ impl Passport {
         let fields = Self::fields(passport)?;
         println!("{:#?}", fields);
 
-        let id = Self::id(&fields)?;
-        let country_id = Self::country_id(&fields);
-        let issue_year = Self::issue_year(&fields)?;
-        let expiration_year = Self::expiration_year(&fields)?;
-        let birth_year = Self::birth_year(&fields)?;
+        let id = fields.get("pid").ok_or(PassportError::MissingField)?;
+        let country_id = fields.get("cid");
+        let issue_year = fields.get("iyr").ok_or(PassportError::MissingField)?;
+        let expiration_year = fields.get("eyr").ok_or(PassportError::MissingField)?;
+        let birth_year = fields.get("byr").ok_or(PassportError::MissingField)?;
 
         let _height = fields.get("hgt").ok_or(PassportError::MissingField)?;
         let _hair_color = fields.get("hcl").ok_or(PassportError::MissingField)?;
         let _eye_color = fields.get("ecl").ok_or(PassportError::MissingField)?;
 
         Ok(Self {
-            id: id,
-            country_id: country_id,
-            issue_year: issue_year,
-            expiration_year: expiration_year,
-            birth_year: birth_year,
+            id: Self::parse_id(id)?,
+            country_id: country_id.map(|cid| cid.to_string()),
+            issue_year: Self::parse_issue_year(issue_year)?,
+            expiration_year: Self::parse_expiration_year(expiration_year)?,
+            birth_year: Self::parse_birth_year(birth_year)?,
             height: Height::Centimeters(170),
             hair_color: "#ffffff".to_string(),
             eye_color: EyeColor::Hazel,
