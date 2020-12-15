@@ -113,6 +113,30 @@ impl Passport {
             })
     }
 
+    fn parse_height(height: &str) -> Result<Height, PassportError> {
+        if let Some(idx) = height.rfind("cm") {
+            let height = height[..idx]
+                .parse()
+                .map_err(|_| PassportError::InvalidHeight)?;
+            return match (150..=193).contains(&height) {
+                true => Ok(Height::Centimeters(height)),
+                false => Err(PassportError::InvalidHeight),
+            };
+        }
+
+        if let Some(idx) = height.rfind("in") {
+            let height = height[..idx]
+                .parse()
+                .map_err(|_| PassportError::InvalidHeight)?;
+            return match (59..=76).contains(&height) {
+                true => Ok(Height::Inches(height)),
+                false => Err(PassportError::InvalidHeight),
+            };
+        }
+
+        Err(PassportError::InvalidHeight)
+    }
+
     fn new(passport: &str) -> Result<Self, PassportError> {
         let fields = Self::fields(passport)?;
         println!("{:#?}", fields);
@@ -123,7 +147,7 @@ impl Passport {
         let expiration_year = fields.get("eyr").ok_or(PassportError::MissingField)?;
         let birth_year = fields.get("byr").ok_or(PassportError::MissingField)?;
 
-        let _height = fields.get("hgt").ok_or(PassportError::MissingField)?;
+        let height = fields.get("hgt").ok_or(PassportError::MissingField)?;
         let _hair_color = fields.get("hcl").ok_or(PassportError::MissingField)?;
         let _eye_color = fields.get("ecl").ok_or(PassportError::MissingField)?;
 
@@ -133,7 +157,7 @@ impl Passport {
             issue_year: Self::parse_issue_year(issue_year)?,
             expiration_year: Self::parse_expiration_year(expiration_year)?,
             birth_year: Self::parse_birth_year(birth_year)?,
-            height: Height::Centimeters(170),
+            height: Self::parse_height(height)?,
             hair_color: "#ffffff".to_string(),
             eye_color: EyeColor::Hazel,
         })
