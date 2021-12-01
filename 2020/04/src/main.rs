@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-// use std::fs::File;
-// use std::io::{BufRead, BufReader};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use structopt::StructOpt;
@@ -188,7 +188,52 @@ impl Passport {
 }
 
 #[paw::main]
-fn main(_args: Args) -> anyhow::Result<()> {
+fn main(args: Args) -> anyhow::Result<()> {
+    let mut part1 = 0;
+    let mut part2 = 0;
+    let mut string = String::new();
+
+    let reader = BufReader::new(File::open(args.input)?);
+    let mut lines = reader.lines();
+
+    loop {
+        match lines.next() {
+            Some(line) => match line?.as_ref() {
+                "" => {
+                    match Passport::new(string.as_ref()) {
+                        Ok(_) => {
+                            part1 += 1;
+                            part2 += 1;
+                        }
+                        Err(PassportError::MissingField) => {}
+                        Err(_) => part1 += 1,
+                    }
+                    println!("{}", string.clone());
+                    string.clear();
+                }
+                line => {
+                    string.push_str(line);
+                    string.push('\n');
+                }
+            },
+            None => {
+                match Passport::new(string.as_ref()) {
+                    Ok(_) => {
+                        part1 += 1;
+                        part2 += 1;
+                    }
+                    Err(PassportError::MissingField) => {}
+                    Err(_) => part1 += 1,
+                }
+                string.clear();
+                break;
+            }
+        }
+    }
+
+    println!("{}", part1);
+    println!("{}", part2);
+
     Ok(())
 }
 
