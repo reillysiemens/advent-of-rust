@@ -19,53 +19,64 @@ enum Error {
     Parse(#[from] std::num::ParseIntError),
 }
 
-fn part1(numbers: &Vec<i32>) -> i32 {
-    if numbers.len() <= 1 {
+fn sonar_sweep(depths: &[u32], window: usize) -> u32 {
+    if depths.len() <= window {
         return 0;
     }
 
-    let mut total = 0;
-    let mut a = numbers[0];
-    for b in numbers[1..].iter() {
-        if b > &a {
-            total += 1;
-        }
-        a = *b;
-    }
+    let windows = depths.windows(window).collect::<Vec<_>>();
+    let increases = windows
+        .iter()
+        .zip(windows[1..].iter())
+        .fold(0, |acc, (m1, m2)| {
+            let sum1: u32 = m1.iter().sum();
+            let sum2: u32 = m2.iter().sum();
+            acc + if sum2 > sum1 { 1 } else { 0 }
+        });
 
-    total
+    increases
 }
 
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
     let reader = BufReader::new(File::open(args.input).map_err(Error::Io)?);
-    let numbers = reader
+    let depths = reader
         .lines()
         .map(|line| line.map_err(Error::Io)?.parse().map_err(Error::Parse))
-        .collect::<Result<Vec<i32>, _>>()?;
-    println!("Part 1: {}", part1(&numbers));
+        .collect::<Result<Vec<u32>, _>>()?;
+
+    let part1 = sonar_sweep(&depths, 1);
+    let part2 = sonar_sweep(&depths, 3);
+    println!("Part 1: {}\nPart 2: {}", part1, part2);
+
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
-    use super::part1;
+    use super::sonar_sweep;
 
     #[test]
-    fn test_part1_with_zero_numbers() {
-        let numbers = vec![];
-        assert_eq!(part1(&numbers), 0);
+    fn test_sonar_sweep_with_zero_depths() {
+        let depths = vec![];
+        assert_eq!(sonar_sweep(&depths, 1), 0);
     }
 
     #[test]
-    fn test_part1_with_one_number() {
-        let numbers = vec![199];
-        assert_eq!(part1(&numbers), 0);
+    fn test_sonar_sweep_with_one_depth() {
+        let depths = vec![199];
+        assert_eq!(sonar_sweep(&depths, 1), 0);
     }
 
     #[test]
-    fn test_part1_with_numbers() {
-        let numbers = vec![199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
-        assert_eq!(part1(&numbers), 7);
+    fn test_sonar_sweep_with_depths_window_1() {
+        let depths = vec![199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
+        assert_eq!(sonar_sweep(&depths, 1), 7);
+    }
+
+    #[test]
+    fn test_sonar_sweep_with_depths_window_3() {
+        let depths = vec![199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
+        assert_eq!(sonar_sweep(&depths, 3), 5);
     }
 }
