@@ -3,13 +3,27 @@ use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Debug, PartialEq, Error)]
+#[error("invalid bracket: {0}")]
+pub struct InvalidBracket(String);
+
+#[derive(Debug, PartialEq, Error)]
 pub enum ParseBracketError {
     #[error("expected {expected:?}, but found {found:?} instead")]
     Corrupt { expected: Bracket, found: Bracket },
     #[error("incomplete brackets: {0:?}")]
     Incomplete(Vec<Bracket>),
-    #[error("invalid token: {0}")]
+    #[error("invalid bracket: {0}")]
     Invalid(String),
+}
+
+// XXX: This From impl is written manually to prevent Bracket::try_from
+// returning impossible variants like Corrupt or Incomplete. We just grab the
+// invalid character and pass it up the stack. There's probably a better way to
+// do this, but I don't know what it is...
+impl From<InvalidBracket> for ParseBracketError {
+    fn from(error: InvalidBracket) -> ParseBracketError {
+        ParseBracketError::Invalid(error.0)
+    }
 }
 
 // NOTE: Scores are implemented on errors and not brackets themselves because
@@ -74,7 +88,7 @@ impl Bracket {
 }
 
 impl TryFrom<char> for Bracket {
-    type Error = ParseBracketError;
+    type Error = InvalidBracket;
 
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
@@ -86,7 +100,7 @@ impl TryFrom<char> for Bracket {
             '}' => Ok(Bracket::Right(BracketKind::Curly)),
             '<' => Ok(Bracket::Left(BracketKind::Angle)),
             '>' => Ok(Bracket::Right(BracketKind::Angle)),
-            _ => Err(ParseBracketError::Invalid(value.to_string())),
+            _ => Err(InvalidBracket(value.to_string())),
         }
     }
 }
