@@ -12,14 +12,13 @@ pub enum ParseBracketError {
     Invalid(String),
 }
 
+// NOTE: Scores are implemented on errors and not brackets themselves because
+// they're only applicable to right brackets in the presence of corruption or
+// incompleteness. Other errors or errors on left brackets (which should be
+// impossible) return 0 to avoid contributing to a score.
 impl ParseBracketError {
     pub fn score(&self) -> u64 {
-        // NOTE: Score is only applicable to right brackets. It should be
-        // impossible to have left brackets considered in a score, but for the
-        // sake of enum exhaustiveness we just consider left brackets as having
-        // no impact on the score.
         match self {
-            Self::Invalid(_) => 0,
             Self::Corrupt { expected: _, found } => match found {
                 Bracket::Right(kind) => match kind {
                     BracketKind::Parens => 3,
@@ -40,6 +39,7 @@ impl ParseBracketError {
                 }
                 _ => acc,
             }),
+            Self::Invalid(_) => 0,
         }
     }
 }
@@ -91,9 +91,13 @@ impl TryFrom<char> for Bracket {
     }
 }
 
+// Create a small newtype wrapper around Vec<Brackets> so that we can get
+// around the orphan rule and implement FromStr.
 #[derive(Debug, PartialEq)]
 pub struct Brackets(Vec<Bracket>);
 
+// This boilerplate is a convenience for the newtype wrapper to allow iteration.
+// We don't use it here, but it could be handy if this library evolved.
 impl IntoIterator for Brackets {
     type Item = Bracket;
     type IntoIter = std::vec::IntoIter<Self::Item>;
@@ -103,15 +107,18 @@ impl IntoIterator for Brackets {
     }
 }
 
+// This is where all the real work happens. With this we can .parse()? to get
+// an Iterator of Bracket. If we don't have valid brackets then we'll get a
+// descriptive error.
 impl FromStr for Brackets {
     type Err = ParseBracketError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
         let mut stack: Vec<Bracket> = vec![];
         let mut brackets: Vec<Bracket> = vec![];
 
-        for c in s.chars() {
-            let bracket = Bracket::try_from(c)?;
+        for chr in string.chars() {
+            let bracket = Bracket::try_from(chr)?;
             match bracket {
                 Bracket::Left(_) => {
                     stack.push(bracket);
@@ -135,20 +142,20 @@ impl FromStr for Brackets {
                     Some(Bracket::Right(_)) => unreachable!(),
                     // The stack was empty, but we found a right bracket. Invalid.
                     None => {
-                        return Err(ParseBracketError::Invalid(c.to_string()));
+                        return Err(ParseBracketError::Invalid(chr.to_string()));
                     }
                 },
             }
         }
 
-        // The brackets were valid, but incomplete.
+        // Brackets remain on the stack, therefore they're incomplete.
         if stack.len() > 0 {
             let closing = stack.iter().rev().map(|b| b.pair()).collect();
-            Err(ParseBracketError::Incomplete(closing))
-        // The brackets were valid and complete.
-        } else {
-            Ok(Brackets(brackets))
+            return Err(ParseBracketError::Incomplete(closing));
         }
+
+        // The brackets were valid and complete.
+        Ok(Brackets(brackets))
     }
 }
 
