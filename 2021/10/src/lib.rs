@@ -1,3 +1,4 @@
+use std::fmt;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -8,11 +9,8 @@ pub struct InvalidBracket(String);
 
 #[derive(Debug, PartialEq, Error)]
 pub enum ParseBracketError {
-    #[error("expected {expected:?}, but found {found:?} instead")]
     Corrupt { expected: Bracket, found: Bracket },
-    #[error("incomplete brackets: {0:?}")]
     Incomplete(Vec<Bracket>),
-    #[error("invalid bracket: {0}")]
     Invalid(String),
 }
 
@@ -23,6 +21,31 @@ pub enum ParseBracketError {
 impl From<InvalidBracket> for ParseBracketError {
     fn from(error: InvalidBracket) -> ParseBracketError {
         ParseBracketError::Invalid(error.0)
+    }
+}
+
+// NOTE: Display is manually implemented for this type because Vec only
+// implements Debug by default and we want pretty logging output.
+impl fmt::Display for ParseBracketError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Corrupt { expected, found } => {
+                write!(
+                    f,
+                    "corruption: expected '{}', but found '{}' instead",
+                    expected, found
+                )
+            }
+            Self::Incomplete(closing) => {
+                let incomplete = closing
+                    .iter()
+                    .map(Bracket::to_string)
+                    .collect::<Vec<String>>()
+                    .join("");
+                write!(f, "incomplete: '{}'", incomplete)
+            }
+            Self::Invalid(bracket) => write!(f, "invalid: {}", bracket),
+        }
     }
 }
 
@@ -87,6 +110,7 @@ impl Bracket {
     }
 }
 
+// Attempt to parse an individual bracket from a char.
 impl TryFrom<char> for Bracket {
     type Error = InvalidBracket;
 
@@ -102,6 +126,24 @@ impl TryFrom<char> for Bracket {
             '>' => Ok(Bracket::Right(BracketKind::Angle)),
             _ => Err(InvalidBracket(value.to_string())),
         }
+    }
+}
+
+// It feels a bit odd to implement display for this when we specifically erased
+// the char by converting to an enum, but it's really handy for debugging output.
+impl fmt::Display for Bracket {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let chr = match self {
+            Bracket::Left(BracketKind::Parens) => '(',
+            Bracket::Right(BracketKind::Parens) => ')',
+            Bracket::Left(BracketKind::Square) => '[',
+            Bracket::Right(BracketKind::Square) => ']',
+            Bracket::Left(BracketKind::Curly) => '{',
+            Bracket::Right(BracketKind::Curly) => '}',
+            Bracket::Left(BracketKind::Angle) => '<',
+            Bracket::Right(BracketKind::Angle) => '>',
+        };
+        write!(f, "{}", chr)
     }
 }
 

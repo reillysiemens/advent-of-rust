@@ -23,12 +23,19 @@ enum Error {
 
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
+    if std::env::var_os("RUST_LOG").is_none() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+
+    pretty_env_logger::init();
+
     let reader = BufReader::new(File::open(args.input)?);
     let (part1, mut part2) = reader
         .lines()
+        .enumerate()
         .try_fold::<(u64, Vec<u64>), _, Result<(u64, Vec<u64>), Error>>(
             (0, vec![]),
-            |(mut part1, mut part2), line| {
+            |(mut part1, mut part2), (number, line)| {
                 let line = line.map_err(Error::Io)?;
                 let brackets: Result<Brackets, _> = line.parse();
 
@@ -37,10 +44,12 @@ fn main(args: Args) -> anyhow::Result<()> {
                     Ok(_) => {}
                     // Corruption score counts towards part 1.
                     Err(error @ ParseBracketError::Corrupt { .. }) => {
+                        log::debug!("line {}: {}", number + 1, error);
                         part1 += error.score();
                     }
                     // Incomplete score counts towards part 2.
                     Err(error @ ParseBracketError::Incomplete(_)) => {
+                        log::debug!("line {}: {}", number + 1, error);
                         part2.push(error.score());
                     }
                     // All other errors are fatal, so we stop early.
@@ -50,7 +59,7 @@ fn main(args: Args) -> anyhow::Result<()> {
             },
         )?;
 
-    println!("Part 1: {}", part1);
+    log::info!("Part 1: {}", part1);
 
     // Order of equal elements doesn't matter, we don't need a stable sort.
     part2.sort_unstable();
@@ -59,9 +68,9 @@ fn main(args: Args) -> anyhow::Result<()> {
     // It's possible that there are no incomplete brackets, which would make it
     // unsafe to index the median value. In that case we'll report "N/A".
     if let Some(median) = part2.get(mid) {
-        println!("Part 2: {}", median);
+        log::info!("Part 2: {}", median);
     } else {
-        println!("Part 2: N/A");
+        log::info!("Part 2: N/A");
     }
 
     Ok(())
