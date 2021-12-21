@@ -20,22 +20,75 @@ enum Error {
 }
 
 #[derive(Debug, Error)]
-#[error("invalid token `{0}`")]
+#[error("invalid token: {0}")]
 struct ParseBracketError(String);
 
-// The numeric values here are scores for corrupted brackets.
+#[derive(Debug, Error)]
+enum BracketEvalError {
+    #[error("expected {expected:?}, but found {found:?} instead")]
+    Corrupt { expected: Bracket, found: Bracket },
+    #[error("incomplete brackets: {0:?}")]
+    Incomplete(Vec<Bracket>),
+}
+
+impl BracketEvalError {
+    fn score(&self) -> u64 {
+        // NOTE: Score is only applicable to right brackets. It should be
+        // impossible to have left brackets considered in a score, but for the
+        // sake of enum exhaustiveness we just consider left brackets as having
+        // no impact on the score.
+        match self {
+            Self::Corrupt { expected: _, found } => match found {
+                Bracket::Right(kind) => match kind {
+                    BracketKind::Parens => 3,
+                    BracketKind::Square => 57,
+                    BracketKind::Curly => 1197,
+                    BracketKind::Angle => 25137,
+                },
+                _ => 0,
+            },
+            Self::Incomplete(brackets) => brackets.iter().fold(0, |acc, b| match b {
+                Bracket::Right(kind) => {
+                    (match kind {
+                        BracketKind::Parens => 1,
+                        BracketKind::Square => 2,
+                        BracketKind::Curly => 3,
+                        BracketKind::Angle => 4,
+                    }) + (acc * 5)
+                }
+                _ => acc,
+            }),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum BracketKind {
-    Parens = 3,
-    Square = 57,
-    Curly = 1197,
-    Angle = 25137,
+    Parens,
+    Square,
+    Curly,
+    Angle,
 }
 
 #[derive(Debug, PartialEq)]
 enum Bracket {
     Left(BracketKind),
     Right(BracketKind),
+}
+
+impl Bracket {
+    fn pair(&self) -> Self {
+        match self {
+            Bracket::Left(BracketKind::Parens) => Bracket::Right(BracketKind::Parens),
+            Bracket::Right(BracketKind::Parens) => Bracket::Left(BracketKind::Parens),
+            Bracket::Left(BracketKind::Square) => Bracket::Right(BracketKind::Square),
+            Bracket::Right(BracketKind::Square) => Bracket::Left(BracketKind::Square),
+            Bracket::Left(BracketKind::Curly) => Bracket::Right(BracketKind::Curly),
+            Bracket::Right(BracketKind::Curly) => Bracket::Left(BracketKind::Curly),
+            Bracket::Left(BracketKind::Angle) => Bracket::Right(BracketKind::Angle),
+            Bracket::Right(BracketKind::Angle) => Bracket::Left(BracketKind::Angle),
+        }
+    }
 }
 
 impl TryFrom<char> for Bracket {
@@ -89,7 +142,7 @@ impl std::str::FromStr for Brackets {
 }
 
 impl Brackets {
-    fn score(self) -> u16 {
+    fn eval(self) -> Result<(), BracketEvalError> {
         let mut stack: Vec<Bracket> = vec![];
 
         for bracket in self {
@@ -98,23 +151,33 @@ impl Brackets {
                 Bracket::Right(right) => match stack.pop() {
                     // Take a left bracket off the stack.
                     Some(Bracket::Left(left)) => {
-                        // Do nothing if left and right match. Otherwise, corruption!
+                        // If the left and right don't match we found
+                        // corruption, otherwise do nothing.
                         if left != right {
-                            return right as u16;
+                            return Err(BracketEvalError::Corrupt {
+                                expected: Bracket::Right(left),
+                                found: Bracket::Right(right),
+                            });
                         }
                     }
                     // The compiler can't know only left brackets go on the stack.
                     Some(Bracket::Right(_)) => unreachable!(),
                     // The stack was empty, but we found a right bracket. Invalid?
                     None => {
-                        return 0;
+                        todo!("WTF do we do in this case?")
                     }
                 },
             }
         }
 
-        // This is a complete, valid set of brackets.
-        0
+        // The brackets were valid, but incomplete.
+        if stack.len() > 0 {
+            let closing = stack.iter().rev().map(|b| b.pair()).collect();
+            Err(BracketEvalError::Incomplete(closing))
+        // The brackets were valid and complete.
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -127,11 +190,26 @@ fn main(args: Args) -> anyhow::Result<()> {
         .collect::<Result<Vec<Brackets>, _>>()?;
 
     let mut part1: u64 = 0;
-    for line in lines {
-        part1 += line.score() as u64;
+    let mut part2: Vec<u64> = vec![];
+
+    for brackets in lines {
+        match brackets.eval() {
+            Ok(_) => {}
+            Err(error @ BracketEvalError::Corrupt { .. }) => {
+                part1 += error.score();
+            }
+            Err(error @ BracketEvalError::Incomplete(_)) => {
+                part2.push(error.score());
+            }
+        }
     }
 
-    println!("Part 1: {}", part1);
+    // We don't need a stable sort, order of equal elements doesn't matter for this.
+    part2.sort_unstable();
+    let mid = part2.len() / 2;
+    let part2 = part2[mid];
+
+    println!("Part 1: {}\nPart 2: {}", part1, part2);
 
     Ok(())
 }
@@ -141,32 +219,37 @@ mod test {
     use super::Brackets;
 
     #[test]
-    fn valid_brackets() {
-        let brackets: Brackets = "[<>({}){}[([])<>]]".parse().unwrap();
-        assert_eq!(brackets.score(), 0);
-    }
-
-    #[test]
     fn corrupt_parens() {
         let brackets: Brackets = "[[<[([]))<([[{}[[()]]]".parse().unwrap();
-        assert_eq!(brackets.score(), 3);
+        let error = brackets.eval().expect_err("expected corrupt parens");
+        assert_eq!(error.score(), 3);
     }
 
     #[test]
     fn corrupt_square_bracket() {
         let brackets: Brackets = "[{[{({}]{}}([{[{{{}}([]".parse().unwrap();
-        assert_eq!(brackets.score(), 57);
+        let error = brackets.eval().expect_err("expected corrupt square");
+        assert_eq!(error.score(), 57);
     }
 
     #[test]
     fn corrupt_curly_brace() {
         let brackets: Brackets = "{([(<{}[<>[]}>{[]{[(<()>".parse().unwrap();
-        assert_eq!(brackets.score(), 1197);
+        let error = brackets.eval().expect_err("expected corrupt curly");
+        assert_eq!(error.score(), 1197);
     }
 
     #[test]
     fn corrupt_angle_bracket() {
         let brackets: Brackets = "<{([([[(<>()){}]>(<<{{".parse().unwrap();
-        assert_eq!(brackets.score(), 25137);
+        let error = brackets.eval().expect_err("expected corrupt angle");
+        assert_eq!(error.score(), 25137);
+    }
+
+    #[test]
+    fn incomplete_brackets() {
+        let brackets: Brackets = "<{([".parse().unwrap();
+        let error = brackets.eval().expect_err("expected incomplete brackets");
+        assert_eq!(error.score(), 294);
     }
 }
