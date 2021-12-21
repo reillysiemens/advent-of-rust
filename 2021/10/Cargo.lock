@@ -50,6 +50,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "day-ten"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "paw",
+ "structopt",
+ "thiserror",
+]
+
+[[package]]
 name = "heck"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -188,16 +198,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
-]
-
-[[package]]
-name = "ten"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "paw",
- "structopt",
- "thiserror",
 ]
 
 [[package]]
