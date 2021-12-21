@@ -2,12 +2,14 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
+use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
 use day_ten::{Brackets, ParseBracketError};
 
 #[derive(StructOpt, Debug)]
+#[structopt(setting = AppSettings::ColoredHelp)]
 struct Args {
     #[structopt(parse(from_os_str))]
     input: PathBuf,
