@@ -95,15 +95,6 @@ pub enum Bracket {
     Right(BracketKind),
 }
 
-impl Bracket {
-    fn pair(&self) -> Self {
-        match self {
-            Bracket::Left(kind) => Bracket::Right(*kind),
-            Bracket::Right(kind) => Bracket::Left(*kind),
-        }
-    }
-}
-
 // Attempt to parse an individual bracket from a char.
 impl TryFrom<char> for Bracket {
     type Error = InvalidBracket;
@@ -164,19 +155,19 @@ impl FromStr for Brackets {
     type Err = ParseBracketError;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
-        let mut stack: Vec<Bracket> = vec![];
+        let mut stack: Vec<BracketKind> = vec![];
         let mut brackets: Vec<Bracket> = vec![];
 
         for chr in string.chars() {
             let bracket = Bracket::try_from(chr)?;
             match bracket {
-                Bracket::Left(_) => {
-                    stack.push(bracket);
+                Bracket::Left(kind) => {
+                    stack.push(kind);
                     brackets.push(bracket);
                 }
                 Bracket::Right(right) => match stack.pop() {
                     // Take a left bracket off the stack.
-                    Some(Bracket::Left(left)) => {
+                    Some(left) => {
                         // Push the bracket if it matches.
                         if left == right {
                             brackets.push(bracket);
@@ -188,8 +179,6 @@ impl FromStr for Brackets {
                             });
                         }
                     }
-                    // The compiler can't know only left brackets go on the stack.
-                    Some(Bracket::Right(_)) => unreachable!(),
                     // The stack was empty, but we found a right bracket. Invalid.
                     None => {
                         return Err(ParseBracketError::Invalid(chr.to_string()));
@@ -200,7 +189,7 @@ impl FromStr for Brackets {
 
         // Brackets remain on the stack, therefore they're incomplete.
         if stack.len() > 0 {
-            let closing = stack.iter().rev().map(|b| b.pair()).collect();
+            let closing = stack.iter().rev().map(|b| Bracket::Right(*b)).collect();
             return Err(ParseBracketError::Incomplete(closing));
         }
 
