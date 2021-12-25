@@ -98,14 +98,8 @@ pub enum Bracket {
 impl Bracket {
     fn pair(&self) -> Self {
         match self {
-            Bracket::Left(BracketKind::Parens) => Bracket::Right(BracketKind::Parens),
-            Bracket::Right(BracketKind::Parens) => Bracket::Left(BracketKind::Parens),
-            Bracket::Left(BracketKind::Square) => Bracket::Right(BracketKind::Square),
-            Bracket::Right(BracketKind::Square) => Bracket::Left(BracketKind::Square),
-            Bracket::Left(BracketKind::Curly) => Bracket::Right(BracketKind::Curly),
-            Bracket::Right(BracketKind::Curly) => Bracket::Left(BracketKind::Curly),
-            Bracket::Left(BracketKind::Angle) => Bracket::Right(BracketKind::Angle),
-            Bracket::Right(BracketKind::Angle) => Bracket::Left(BracketKind::Angle),
+            Bracket::Left(kind) => Bracket::Right(*kind),
+            Bracket::Right(kind) => Bracket::Left(*kind),
         }
     }
 }
