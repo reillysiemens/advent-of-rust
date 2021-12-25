@@ -23,6 +23,34 @@ enum Error {
     Parse(#[from] ParseBracketError),
 }
 
+struct Answer {
+    part1: u64,
+    part2: Vec<u64>,
+}
+
+impl Answer {
+    fn new() -> Self {
+        Self {
+            part1: 0,
+            part2: vec![],
+        }
+    }
+
+    fn part1(&self) -> u64 {
+        self.part1
+    }
+
+    fn part2(&mut self) -> Option<&u64> {
+        // Order of equal elements doesn't matter, we don't need a stable sort.
+        self.part2.sort_unstable();
+
+        // It's possible that there are no incomplete brackets, which would
+        // make it unsafe to index the median value, so we return an Option.
+        let mid = self.part2.len() / 2;
+        self.part2.get(mid)
+    }
+}
+
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
     if std::env::var_os("RUST_LOG").is_none() {
@@ -32,12 +60,12 @@ fn main(args: Args) -> anyhow::Result<()> {
     pretty_env_logger::init();
 
     let reader = BufReader::new(File::open(args.input)?);
-    let (part1, mut part2) = reader
+    let mut answer = reader
         .lines()
         .enumerate()
-        .try_fold::<(u64, Vec<u64>), _, Result<(u64, Vec<u64>), Error>>(
-            (0, vec![]),
-            |(mut part1, mut part2), (number, line)| {
+        .try_fold::<Answer, _, Result<Answer, Error>>(
+            Answer::new(),
+            |mut answer, (number, line)| {
                 let line = line.map_err(Error::Io)?;
                 let brackets: Result<Brackets, _> = line.parse();
 
@@ -47,29 +75,23 @@ fn main(args: Args) -> anyhow::Result<()> {
                     // Corruption score counts towards part 1.
                     Err(error @ ParseBracketError::Corrupt { .. }) => {
                         log::debug!("line {}: {}", number + 1, error);
-                        part1 += error.score();
+                        answer.part1 += error.score();
                     }
                     // Incomplete score counts towards part 2.
                     Err(error @ ParseBracketError::Incomplete(_)) => {
                         log::debug!("line {}: {}", number + 1, error);
-                        part2.push(error.score());
+                        answer.part2.push(error.score());
                     }
                     // All other errors are fatal, so we stop early.
                     Err(error) => return Err(error).map_err(Error::Parse),
                 }
-                Ok((part1, part2))
+                Ok(answer)
             },
         )?;
 
-    log::info!("Part 1: {}", part1);
+    log::info!("Part 1: {}", answer.part1());
 
-    // Order of equal elements doesn't matter, we don't need a stable sort.
-    part2.sort_unstable();
-    let mid = part2.len() / 2;
-
-    // It's possible that there are no incomplete brackets, which would make it
-    // unsafe to index the median value. In that case we'll report "N/A".
-    if let Some(median) = part2.get(mid) {
+    if let Some(median) = answer.part2() {
         log::info!("Part 2: {}", median);
     } else {
         log::info!("Part 2: N/A");
