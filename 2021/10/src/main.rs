@@ -51,6 +51,32 @@ impl Answer {
     }
 }
 
+fn score(
+    mut answer: Answer,
+    (number, line): (usize, Result<String, std::io::Error>),
+) -> Result<Answer, Error> {
+    let line = line.map_err(Error::Io)?;
+    let brackets: Result<Brackets, _> = line.parse();
+
+    match brackets {
+        // We don't care about valid brackets.
+        Ok(_) => {}
+        // Corruption score counts towards part 1.
+        Err(error @ ParseBracketError::Corrupt { .. }) => {
+            log::debug!("line {}: {}", number + 1, error);
+            answer.part1 += error.score();
+        }
+        // Incomplete score counts towards part 2.
+        Err(error @ ParseBracketError::Incomplete(_)) => {
+            log::debug!("line {}: {}", number + 1, error);
+            answer.part2.push(error.score());
+        }
+        // All other errors are fatal, so we stop early.
+        Err(error) => return Err(error).map_err(Error::Parse),
+    }
+    Ok(answer)
+}
+
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
     if std::env::var_os("RUST_LOG").is_none() {
@@ -63,31 +89,7 @@ fn main(args: Args) -> anyhow::Result<()> {
     let mut answer = reader
         .lines()
         .enumerate()
-        .try_fold::<Answer, _, Result<Answer, Error>>(
-            Answer::new(),
-            |mut answer, (number, line)| {
-                let line = line.map_err(Error::Io)?;
-                let brackets: Result<Brackets, _> = line.parse();
-
-                match brackets {
-                    // We don't care about valid brackets.
-                    Ok(_) => {}
-                    // Corruption score counts towards part 1.
-                    Err(error @ ParseBracketError::Corrupt { .. }) => {
-                        log::debug!("line {}: {}", number + 1, error);
-                        answer.part1 += error.score();
-                    }
-                    // Incomplete score counts towards part 2.
-                    Err(error @ ParseBracketError::Incomplete(_)) => {
-                        log::debug!("line {}: {}", number + 1, error);
-                        answer.part2.push(error.score());
-                    }
-                    // All other errors are fatal, so we stop early.
-                    Err(error) => return Err(error).map_err(Error::Parse),
-                }
-                Ok(answer)
-            },
-        )?;
+        .try_fold::<Answer, _, Result<Answer, Error>>(Answer::new(), score)?;
 
     log::info!("Part 1: {}", answer.part1());
 
