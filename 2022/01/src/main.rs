@@ -16,18 +16,18 @@ struct Args {
     num_elves: usize,
 }
 
-fn push_elf(elves: &mut BinaryHeap<Reverse<u64>>, calories: &mut Vec<u64>, top: usize) {
-    elves.push(Reverse(calories.iter().sum()));
-    if elves.len() > top {
-        elves.pop();
-    }
-    calories.clear();
-}
-
 fn top_calories(
     lines: impl IntoIterator<Item = impl AsRef<str>>,
     top: usize,
 ) -> Result<Vec<u64>, ParseIntError> {
+    fn push_elf(elves: &mut BinaryHeap<Reverse<u64>>, calories: &mut Vec<u64>, top: usize) {
+        elves.push(Reverse(calories.iter().sum()));
+        if elves.len() > top {
+            elves.pop();
+        }
+        calories.clear();
+    }
+
     // Use a min heap to track elf calories. By popping all of the smallest
     // values we've seen so far we can retain only the `top` largest values. We
     // use a capacity of `top + 1` to allow for one comparison before popping.
