@@ -73,25 +73,18 @@ mod tests {
     use super::top_calories;
     use std::num::ParseIntError;
 
+    use pretty_assertions::assert_eq;
+    use test_case::test_case;
+
     const ELVEN_CALORIES: [&str; 14] = [
         "1000", "2000", "3000", "", "4000", "", "5000", "6000", "", "7000", "8000", "9000", "",
         "10000",
     ];
 
-    #[test]
-    fn test_part1() -> Result<(), ParseIntError> {
-        let expected = 24_000;
-        let answer = top_calories(ELVEN_CALORIES, 1)?;
-
-        assert_eq!(answer[0], expected);
-        Ok(())
-    }
-
-    #[test]
-    fn test_part2() -> Result<(), ParseIntError> {
-        let answer: u64 = top_calories(ELVEN_CALORIES, 3)?.iter().sum();
-        let expected = 45_000;
-
+    #[test_case(24_000, 1 ; "part1")]
+    #[test_case(45_000, 3 ; "part2")]
+    fn test_top_calories(expected: u64, num_elves: usize) -> Result<(), ParseIntError> {
+        let answer: u64 = top_calories(ELVEN_CALORIES, num_elves)?.iter().sum();
         assert_eq!(answer, expected);
         Ok(())
     }
