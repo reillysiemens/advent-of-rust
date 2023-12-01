@@ -17,7 +17,7 @@ fn calibrate(line: impl AsRef<str>) -> Result<u32, Error> {
     }
 }
 
-pub fn solve(lines: impl IntoIterator<Item = impl AsRef<str>>) -> Result<u32, Error> {
+pub fn solve(lines: impl IntoIterator<Item = impl AsRef<str>>) -> anyhow::Result<u32> {
     Ok(lines
         .into_iter()
         .map(calibrate)
