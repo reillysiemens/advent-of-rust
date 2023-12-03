@@ -1,4 +1,16 @@
-use std::str::FromStr;
+use clap::Parser;
+
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::PathBuf,
+    str::FromStr,
+};
+
+#[derive(Debug, Parser)]
+struct Args {
+    input: PathBuf,
+}
 
 #[derive(Debug, thiserror::Error)]
 #[error("Failed to parse cube: '{0}'")]
@@ -40,6 +52,34 @@ struct Game {
     sets: Vec<Vec<Cube>>,
 }
 
+impl Game {
+    fn possible(&self, red: u32, green: u32, blue: u32) -> bool {
+        for set in &self.sets {
+            for cube in set {
+                match cube {
+                    Cube::Red(count) => {
+                        if *count > red {
+                            return false;
+                        }
+                    }
+                    Cube::Green(count) => {
+                        if *count > green {
+                            return false;
+                        }
+                    }
+                    Cube::Blue(count) => {
+                        if *count > blue {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        true
+    }
+}
+
 impl FromStr for Game {
     type Err = ParseGameError;
 
@@ -69,7 +109,30 @@ impl FromStr for Game {
     }
 }
 
-fn main() {}
+fn part1(
+    lines: impl IntoIterator<Item = impl AsRef<str>>,
+    red: u32,
+    green: u32,
+    blue: u32,
+) -> anyhow::Result<u32> {
+    let mut sum = 0;
+    for line in lines.into_iter() {
+        let game: Game = line.as_ref().parse()?;
+        if game.possible(red, green, blue) {
+            sum += game.id;
+        }
+    }
+    Ok(sum)
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let reader = BufReader::new(File::open(args.input)?);
+    let lines = reader.lines().collect::<Result<Vec<String>, _>>()?;
+    let part1 = part1(lines, 12, 13, 14)?;
+    println!("Part 1: {part1}");
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
@@ -106,5 +169,33 @@ mod tests {
         let actual: Game = record.parse()?;
         assert_eq!(actual, expected);
         Ok(())
+    }
+
+    #[test_case(
+        Game { id: 1, sets: vec![vec![Blue(3), Red(4)], vec![Red(1), Green(2), Blue(6)], vec![Green(2)]]}
+        ; "Game 1"
+    )]
+    #[test_case(
+        Game { id: 2, sets: vec![vec![Blue(1), Green(2)], vec![Green(3), Blue(4), Red(1)], vec![Green(1), Blue(1)]]}
+        ; "Game 2"
+    )]
+    #[test_case(
+        Game { id: 5, sets: vec![vec![Red(6), Blue(1), Green(3)], vec![Blue(2), Red(1), Green(2)]]}
+        ; "Game 5"
+    )]
+    fn possible(game: Game) {
+        assert!(game.possible(12, 13, 14));
+    }
+
+    #[test_case(
+        Game { id: 3, sets: vec![vec![Green(8), Blue(6), Red(20)], vec![Blue(5), Red(4), Green(13)], vec![Green(5), Red(1)]]}
+        ; "Game 3"
+    )]
+    #[test_case(
+        Game { id: 4, sets: vec![vec![Green(1), Red(3), Blue(6)], vec![Green(3), Red(6)], vec![Green(3), Blue(15), Red(14)]]}
+        ; "Game 4"
+    )]
+    fn impossible(game: Game) {
+        assert!(!game.possible(12, 13, 14));
     }
 }
