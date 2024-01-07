@@ -1,5 +1,6 @@
 use std::{fs, num::ParseIntError, path::PathBuf};
 
+use anyhow::anyhow;
 use clap::Parser;
 
 #[derive(Debug, Parser)]
@@ -52,14 +53,35 @@ fn run(mut memory: Vec<u64>) -> Result<Vec<u64>, Error> {
     Ok(memory)
 }
 
-fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
-    let code = fs::read_to_string(args.input)?;
-    let mut program = parse(&code)?;
+fn part1(mut program: Vec<u64>) -> anyhow::Result<u64> {
     program[1] = 12;
     program[2] = 2;
     let memory = run(program)?;
-    println!("{}", memory[0]);
+    Ok(memory[0])
+}
+
+fn part2(program: Vec<u64>) -> anyhow::Result<u64> {
+    for noun in 0..100 {
+        for verb in 0..100 {
+            let mut memory = program.clone();
+            memory[1] = noun;
+            memory[2] = verb;
+            if run(memory)?[0] == 19690720 {
+                return Ok(100 * noun + verb);
+            }
+        }
+    }
+    Err(anyhow!("No noun and verb which yield 19690720"))
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let code = fs::read_to_string(args.input)?;
+    let program = parse(&code)?;
+
+    println!("Part 1: {}", part1(program.clone())?);
+    println!("Part 2: {}", part2(program)?);
+
     Ok(())
 }
 
