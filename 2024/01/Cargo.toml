@@ -1,0 +1,13 @@
+[package]
+name = "day-one"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.93"
+clap = { version = "4.5.21", features = ["derive"] }
+thiserror = "2.0.3"
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"
+test-case = "3.3.1"
